@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",  // ❗ เพิ่มบรรทัดนี้
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,6 +14,6 @@
     "discord.js": "^14.23.2",
     "dotenv": "^17.2.3",
     "googleapis": "^162.0.0",
-    "google-auth-library": "^9.10.0" // ❗ เพิ่มบรรทัดนี้
-  }
+    "google-auth-library": "^9.10.0" 
+  } // <--- ไม่มีคอมม่าตรงนี้แล้ว
 }
