@@ -70,8 +70,8 @@ const gsapi = google.sheets({ version: 'v4', auth });
 // ===================================
 
 /**
- * สร้างข้อความที่มีปุ่มสำหรับเริ่มนับสถิติย้อนหลัง
- */
+ * สร้างข้อความที่มีปุ่มสำหรับเริ่มนับสถิติย้อนหลัง
+ */
 function getStartCountMessage() {
 const row = new ActionRowBuilder()
 .addComponents(
@@ -88,8 +88,8 @@ components: [row]
 
 
 /**
- * ฟังก์ชันหลักในการอัปเดตสถิติลง Google Sheets 
- */
+ * ฟังก์ชันหลักในการอัปเดตสถิติลง Google Sheets 
+ */
 async function batchUpdateMentions(batchMap, channelIndex) {
 const range = `${CONFIG.SHEET_NAME}!A:E`; 
 const response = await gsapi.spreadsheets.values.get({
@@ -138,8 +138,8 @@ await new Promise(r => setTimeout(r, CONFIG.UPDATE_DELAY));
 
 
 /**
- * ประมวลผลข้อความเพื่อดึง Nickname และนับ Mention
- */
+ * ประมวลผลข้อความเพื่อดึง Nickname และนับ Mention
+ */
 async function processMessagesBatch(messages, channelIndex) {
 
 const EXCLUDED_USER_ID = CONFIG.EXCLUDED_USER_ID; 
@@ -194,8 +194,8 @@ await batchUpdateMentions(batchMap, channelIndex);
 
 
 /**
- * ดึงและประมวลผลข้อความเก่าจาก Channel (Historical Count)
- */
+ * ดึงและประมวลผลข้อความเก่าจาก Channel (Historical Count)
+ */
 async function processOldMessages(channelId, channelIndex) {
 try {
 const channel = await client.channels.fetch(channelId).catch(() => null);
@@ -218,8 +218,6 @@ await new Promise(r => setTimeout(r, CONFIG.BATCH_DELAY));
 console.log(`Finished processing old messages for channel ${channelId}.`);
 } catch (error) {
 console.error(`Error processing channel ${channelId}:`, error);
-// ❌ **สำคัญ**: ไม่ควร throw error ออกไปตรงๆ ในฟังก์ชันนี้
-// เพราะจะทำให้การทำงานที่ `interaction.editReply()` ใน Event Handler ล้มเหลวได้ (เป็นที่มาของ code 10062)
 }
 }
 
@@ -248,44 +246,26 @@ client.on(Events.InteractionCreate, async interaction => {
 if (!interaction.isButton()) return;
 if (interaction.customId !== COUNT_BUTTON_ID) return;
 
-// 1. ตอบกลับทันทีแบบชั่วคราว (Ephemeral)
-// นี่คือสิ่งที่ป้องกันไม่ให้เกิด Timeout 3 วินาทีแรก
+// ตอบกลับทันทีแบบชั่วคราว (Ephemeral)
 await interaction.deferReply({ ephemeral: true }); 
 
 try {
-// 2. ข้อความแจ้งเริ่มต้นการทำงาน
+// 1. ข้อความแจ้งเริ่มต้นการทำงาน
 await interaction.editReply({ content: '✅ กำลังเริ่มนับสถิติข้อความเก่า... (ขั้นตอนนี้อาจใช้เวลานาน)' });
 
 // เริ่มกระบวนการนับสถิติข้อความเก่า
 for (let i = 0; i < CONFIG.CHANNEL_IDS.length; i++) {
-    const currentChannel = CONFIG.CHANNEL_IDS[i];
-    // 🚩 อัปเดตสถานะทุกครั้งที่เริ่ม Channel ใหม่
-    await interaction.editReply({ content: `🔄 กำลังนับสถิติ: Channel ${i + 1}/${CONFIG.CHANNEL_IDS.length} (ID: ${currentChannel})` });
-    
-    await processOldMessages(currentChannel, i);
+await processOldMessages(CONFIG.CHANNEL_IDS[i], i);
 }
 
-// 3. แจ้งผลลัพธ์สุดท้าย **(ใช้ followUp เพื่อเลี่ยง 15-minute timeout)**
-// ถ้าใช้ editReply หลัง 15 นาที จะเกิด 'Unknown interaction'
-await interaction.followUp({ 
-    content: '🎉 การนับสถิติข้อความเก่าเสร็จสมบูรณ์แล้ว! (ข้อความนี้จะถูกลบอัตโนมัติใน 5 วินาที)',
-    ephemeral: true // ให้ข้อความแจ้งผลลัพธ์ใหม่นี้เป็นแบบส่วนตัวเช่นกัน
-});
-
-// 4. ลบข้อความ deferReply/editReply เดิม
-// การลบจะไม่ส่งผลต่อ FollowUp Message ที่เพิ่งถูกส่งไป
-await interaction.deleteReply(); 
-// ไม่ต้องรอ 5 วินาทีแล้ว เพราะเราส่งข้อความ Follow-up ใหม่ไปแล้ว
+// 2. แจ้งผลลัพธ์และลบข้อความ
+await interaction.editReply('🎉 การนับสถิติข้อความเก่าเสร็จสมบูรณ์แล้ว! ข้อความนี้จะถูกลบอัตโนมัติใน 5 วินาที');
+await new Promise(r => setTimeout(r, 5000));
+await interaction.deleteReply();
 
 } catch (error) {
 console.error('[Historical Count Error]:', error);
-
-// 🚩 แจ้ง Error โดยใช้ Follow-up Message
-await interaction.followUp({
-    content: '❌ เกิดข้อผิดพลาดในการนับสถิติ โปรดตรวจสอบ Log ของบอท',
-    ephemeral: true
-});
-
+await interaction.editReply('❌ เกิดข้อผิดพลาดในการนับสถิติ โปรดตรวจสอบ Log ของบอท');
 }
 });
 
@@ -319,11 +299,11 @@ console.error('[Real-Time Count Error]:', error);
 // 🌐 WEB SERVER (Keep Alive / 24/7)
 // ===================================
 http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.write('✅ Discord Bot is alive and running on Render!');
-  res.end();
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.write('✅ Discord Bot is alive and running on Replit!');
+  res.end();
 }).listen(3000, () => {
-  console.log('🌐 Web server running on port 3000 for Uptime Monitoring.');
+  console.log('🌐 Web server running on port 3000 for UptimeRobot.');
 });
 
 
